@@ -1,5 +1,3 @@
-import os
-import shutil
 import csv
 import requests
 import time
@@ -29,12 +27,14 @@ try:
     soup = BeautifulSoup(response.content, 'html.parser')
 
     top_clubs = soup.find_all(name='div', attrs={'class': 'topclubs'})
+    if not top_clubs:
+      raise Exception("Error while scraping the website, Top Clubs are missed. check your Authentication.")
 
     clubs_anchors = []
 
     for top_clubs_section in top_clubs:
-        anchor = top_clubs_section.find_all(name='a')
-        clubs_anchors.extend(anchor)
+        anchors = top_clubs_section.find_all(name='a')
+        clubs_anchors.extend(anchors)
 
     players_links = []
 
@@ -49,7 +49,7 @@ try:
             player_anchor = card.find('a')
             if player_anchor:
                 players_links.append(player_anchor.get('href'))
-
+    
     for href in players_links:
         player_page = requests.get('{url}{href}'.format(
             url=url, href=href), headers=headers, cookies=cookies)
@@ -128,7 +128,6 @@ try:
         }
 
         csv_writer.writerow(player_all_data)
-
 
 finally:
     csv_file.close()
