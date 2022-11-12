@@ -9,26 +9,30 @@ url = 'https://www.footballdatabase.eu'
 cookies = {
     '_gid': 'GA1.2.1879093664.1668252509',
     'nadz_dailyVisits': '1',
-    'PHPSESSID': '3jk5sv6af8jppcke82glhe4vo5',
-    'fbdb_auth': 'ee82ef03066d50bd079327efc5a000cd',
+    '_gat_gtag_UA_1896429_1': '1',
+    'PHPSESSID': 'c1b0b9lu6bjgvjcrf2l0ftmlor',
+    'fbdb_auth': '7f95ceaf5109996b74eb15b1e39a0fa0',
+    '_ga_31VFXW2CM3': 'GS1.1.1668284534.2.1.1668284542.0.0.0',
     '_ga': 'GA1.2.1421094633.1668252509',
-    '_ga_31VFXW2CM3': 'GS1.1.1668252509.1.1.1668252564.0.0.0',
 }
 
 headers = {
     'authority': 'www.footballdatabase.eu',
-    'accept': '*/*',
+    'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
     'accept-language': 'en-US,en;q=0.9',
+    'cache-control': 'max-age=0',
     # Requests sorts cookies= alphabetically
-    # 'cookie': '_gid=GA1.2.1879093664.1668252509; nadz_dailyVisits=1; PHPSESSID=3jk5sv6af8jppcke82glhe4vo5; fbdb_auth=ee82ef03066d50bd079327efc5a000cd; _ga=GA1.2.1421094633.1668252509; _ga_31VFXW2CM3=GS1.1.1668252509.1.1.1668252564.0.0.0',
+    # 'cookie': '_gid=GA1.2.1879093664.1668252509; nadz_dailyVisits=1; _gat_gtag_UA_1896429_1=1; PHPSESSID=c1b0b9lu6bjgvjcrf2l0ftmlor; fbdb_auth=7f95ceaf5109996b74eb15b1e39a0fa0; _ga_31VFXW2CM3=GS1.1.1668284534.2.1.1668284542.0.0.0; _ga=GA1.2.1421094633.1668252509',
     'origin': 'https://www.footballdatabase.eu',
-    'referer': 'https://www.footballdatabase.eu/en/club/team/28-real_madrid/2022-2023',
+    'referer': 'https://www.footballdatabase.eu/en/',
     'sec-ch-ua': '"Microsoft Edge";v="107", "Chromium";v="107", "Not=A?Brand";v="24"',
     'sec-ch-ua-mobile': '?0',
     'sec-ch-ua-platform': '"Windows"',
-    'sec-fetch-dest': 'font',
-    'sec-fetch-mode': 'cors',
+    'sec-fetch-dest': 'document',
+    'sec-fetch-mode': 'navigate',
     'sec-fetch-site': 'same-origin',
+    'sec-fetch-user': '?1',
+    'upgrade-insecure-requests': '1',
     'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Safari/537.36 Edg/107.0.1418.42',
 }
 
@@ -48,10 +52,12 @@ try:
 
     soup = BeautifulSoup(response.content, 'html.parser')
 
+    print(f"Successfully connected with {url}.")
+
     top_clubs = soup.find_all(name='div', attrs={'class': 'topclubs'})
-    
     if not top_clubs:
-      raise Exception("Error while scraping the website, Top Clubs are missed. check your Authentication.")
+        raise Exception(
+            "Error while scraping the website, Top Clubs are missed. check your Authentication.")
 
     clubs_anchors = []
 
@@ -61,30 +67,41 @@ try:
 
     players_links = []
 
+    i = 1
     for anchor in clubs_anchors:
         club_data = requests.get('{url}{href}'.format(
             url=url, href=anchor.get('href')), headers=headers, cookies=cookies)
 
         club_cards = BeautifulSoup(
             club_data.content, 'html.parser').find_all('div', {'class': 'card-player'})
+        print(f'Getting club {i} data...')
 
         for card in club_cards:
             player_anchor = card.find('a')
             if player_anchor:
                 players_links.append(player_anchor.get('href'))
-    
+        if i == 2:
+            break
+        i += 1
+
     if len(clubs_anchors) > 10:
         raise Exception("Can't get all top 10 clubs from the website.")
+    print(f'Number of players in top 10 clubs is: {len(players_links)}.')
 
+    j = 1
     for href in players_links:
+        if j > 1:
+            print('✔')
         player_page = requests.get('{url}{href}'.format(
             url=url, href=href), headers=headers, cookies=cookies)
 
         soup_player_data = BeautifulSoup(player_page.content, 'html.parser').find(
             'div', {'class': 'player_technical'})
+        print(f'Getting player {j} data...')
 
         if soup_player_data is None:
-            raise Exception("Can't get the data for another players because requests limitation.")
+            raise Exception(
+                "Can't get the data for another players because requests limitation.")
 
         player_name = soup_player_data.find(
             'div', {'class', 'titlePlayer'}).find('h1').text if soup_player_data else None
@@ -157,6 +174,9 @@ try:
         }
 
         csv_writer.writerow(player_all_data)
+        j += 1
+
+    print('Players data was added to football.csv file successfully.')
 
 finally:
     csv_file.close()
