@@ -6,9 +6,31 @@ from bs4 import BeautifulSoup
 url = 'https://www.footballdatabase.eu'
 
 
-cookies = { }
+cookies = {
+    '_gid': 'GA1.2.1879093664.1668252509',
+    'nadz_dailyVisits': '1',
+    'PHPSESSID': '3jk5sv6af8jppcke82glhe4vo5',
+    'fbdb_auth': 'ee82ef03066d50bd079327efc5a000cd',
+    '_ga': 'GA1.2.1421094633.1668252509',
+    '_ga_31VFXW2CM3': 'GS1.1.1668252509.1.1.1668252564.0.0.0',
+}
 
-headers = { }
+headers = {
+    'authority': 'www.footballdatabase.eu',
+    'accept': '*/*',
+    'accept-language': 'en-US,en;q=0.9',
+    # Requests sorts cookies= alphabetically
+    # 'cookie': '_gid=GA1.2.1879093664.1668252509; nadz_dailyVisits=1; PHPSESSID=3jk5sv6af8jppcke82glhe4vo5; fbdb_auth=ee82ef03066d50bd079327efc5a000cd; _ga=GA1.2.1421094633.1668252509; _ga_31VFXW2CM3=GS1.1.1668252509.1.1.1668252564.0.0.0',
+    'origin': 'https://www.footballdatabase.eu',
+    'referer': 'https://www.footballdatabase.eu/en/club/team/28-real_madrid/2022-2023',
+    'sec-ch-ua': '"Microsoft Edge";v="107", "Chromium";v="107", "Not=A?Brand";v="24"',
+    'sec-ch-ua-mobile': '?0',
+    'sec-ch-ua-platform': '"Windows"',
+    'sec-fetch-dest': 'font',
+    'sec-fetch-mode': 'cors',
+    'sec-fetch-site': 'same-origin',
+    'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Safari/537.36 Edg/107.0.1418.42',
+}
 
 csv_players_columns = ['name', 'club', 'age', 'nationality', 'caps',
                        'height', 'weight', 'first cap', 'best foot', 'photo']
@@ -27,6 +49,7 @@ try:
     soup = BeautifulSoup(response.content, 'html.parser')
 
     top_clubs = soup.find_all(name='div', attrs={'class': 'topclubs'})
+    
     if not top_clubs:
       raise Exception("Error while scraping the website, Top Clubs are missed. check your Authentication.")
 
@@ -50,12 +73,18 @@ try:
             if player_anchor:
                 players_links.append(player_anchor.get('href'))
     
+    if len(clubs_anchors) > 10:
+        raise Exception("Can't get all top 10 clubs from the website.")
+
     for href in players_links:
         player_page = requests.get('{url}{href}'.format(
             url=url, href=href), headers=headers, cookies=cookies)
 
         soup_player_data = BeautifulSoup(player_page.content, 'html.parser').find(
             'div', {'class': 'player_technical'})
+
+        if soup_player_data is None:
+            raise Exception("Can't get the data for another players because requests limitation.")
 
         player_name = soup_player_data.find(
             'div', {'class', 'titlePlayer'}).find('h1').text if soup_player_data else None
