@@ -1,19 +1,20 @@
 import csv
-import requests
 import time
+
+import requests
 from bs4 import BeautifulSoup
 
 url = 'https://www.footballdatabase.eu'
 
 
 cookies = {
-    '_gid': 'GA1.2.1879093664.1668252509',
     'nadz_dailyVisits': '1',
+    '_gid': 'GA1.2.1107512693.1668538883',
     '_gat_gtag_UA_1896429_1': '1',
-    'PHPSESSID': 'c1b0b9lu6bjgvjcrf2l0ftmlor',
-    'fbdb_auth': '7f95ceaf5109996b74eb15b1e39a0fa0',
-    '_ga_31VFXW2CM3': 'GS1.1.1668284534.2.1.1668284542.0.0.0',
-    '_ga': 'GA1.2.1421094633.1668252509',
+    'PHPSESSID': 'csqha4bfi2m57o43bvilhpmci3',
+    'fbdb_auth': 'ea8297af40254576a2429b88aeba824f',
+    '_ga_31VFXW2CM3': 'GS1.1.1668540897.2.1.1668544213.0.0.0',
+    '_ga': 'GA1.2.1856903666.1668538881',
 }
 
 headers = {
@@ -22,9 +23,9 @@ headers = {
     'accept-language': 'en-US,en;q=0.9',
     'cache-control': 'max-age=0',
     # Requests sorts cookies= alphabetically
-    # 'cookie': '_gid=GA1.2.1879093664.1668252509; nadz_dailyVisits=1; _gat_gtag_UA_1896429_1=1; PHPSESSID=c1b0b9lu6bjgvjcrf2l0ftmlor; fbdb_auth=7f95ceaf5109996b74eb15b1e39a0fa0; _ga_31VFXW2CM3=GS1.1.1668284534.2.1.1668284542.0.0.0; _ga=GA1.2.1421094633.1668252509',
+    # 'cookie': 'nadz_dailyVisits=1; _gid=GA1.2.1107512693.1668538883; _gat_gtag_UA_1896429_1=1; PHPSESSID=csqha4bfi2m57o43bvilhpmci3; fbdb_auth=ea8297af40254576a2429b88aeba824f; _ga_31VFXW2CM3=GS1.1.1668540897.2.1.1668544213.0.0.0; _ga=GA1.2.1856903666.1668538881',
     'origin': 'https://www.footballdatabase.eu',
-    'referer': 'https://www.footballdatabase.eu/en/',
+    'referer': 'https://www.footballdatabase.eu/en/player/details/10973-lionel-messi',
     'sec-ch-ua': '"Microsoft Edge";v="107", "Chromium";v="107", "Not=A?Brand";v="24"',
     'sec-ch-ua-mobile': '?0',
     'sec-ch-ua-platform': '"Windows"',
@@ -37,10 +38,10 @@ headers = {
 }
 
 csv_players_columns = ['name', 'club', 'age', 'nationality', 'caps',
-                       'height', 'weight', 'first cap', 'best foot', 'photo']
+                       'height', 'weight', 'first cap', 'best foot', 'photo', 'positions', 'clean sheets', "clean sheets", "goals conceded",  "minutes played",  "played matched",  "impacting goals",  "goals",  "impacting assists",  "assists",  "yellow cards", "red cards", "identities"]
 
 try:
-    csv_file = open('football.csv', 'w')
+    csv_file = open('football.csv', 'w', encoding="utf-8")
 
     csv_writer = csv.DictWriter(csv_file, fieldnames=csv_players_columns)
     csv_writer.writeheader()
@@ -65,6 +66,9 @@ try:
         anchors = top_clubs_section.find_all(name='a')
         clubs_anchors.extend(anchors)
 
+    if len(clubs_anchors) > 10:
+        raise Exception("Can't get all top 10 clubs from the website.")
+
     players_links = []
 
     i = 1
@@ -80,39 +84,39 @@ try:
             player_anchor = card.find('a')
             if player_anchor:
                 players_links.append(player_anchor.get('href'))
-        if i == 2:
+        if i == 1:
             break
         i += 1
 
-    if len(clubs_anchors) > 10:
-        raise Exception("Can't get all top 10 clubs from the website.")
     print(f'Number of players in top 10 clubs is: {len(players_links)}.')
 
     j = 1
     for href in players_links:
         if j > 1:
             print('✔')
+
         player_page = requests.get('{url}{href}'.format(
             url=url, href=href), headers=headers, cookies=cookies)
 
-        soup_player_data = BeautifulSoup(player_page.content, 'html.parser').find(
-            'div', {'class': 'player_technical'})
+        soup_player_page = BeautifulSoup(player_page.content, 'html.parser')
         print(f'Getting player {j} data...')
 
-        if soup_player_data is None:
+        player_information = soup_player_page.find(
+            'div', {'class': 'player_technical'})
+        if player_information is None:
             raise Exception(
                 "Can't get the data for another players because requests limitation.")
 
-        player_name = soup_player_data.find(
-            'div', {'class', 'titlePlayer'}).find('h1').text if soup_player_data else None
+        player_name = player_information.find(
+            'div', {'class', 'titlePlayer'}).find('h1').text if player_information else None
 
-        player_club = soup_player_data.find(
-            'div', {'class', 'club'}).find('a').text if soup_player_data else None
+        player_club = player_information.find(
+            'div', {'class', 'club'}).find('a').text if player_information else None
 
-        first_line_data = soup_player_data.find('div', {'class', 'infoPlayer'}).find(
+        first_line_data = player_information.find('div', {'class', 'infoPlayer'}).find(
             'div', {'class', 'line'}).find_all('div', {'class', 'data'})
 
-        second_line_data = soup_player_data.find('div', {'class', 'infoPlayer'}).find(
+        second_line_data = player_information.find('div', {'class', 'infoPlayer'}).find(
             'div', {'class', 'linesecond'}).find_all('div', {'class', 'data'})
 
         player_age = None
@@ -156,11 +160,126 @@ try:
         player_first_cap = second_line_data[1].find('a').text if len(
             second_line_data) >= 2 and second_line_data[1].find('a') else None
 
-        player_photo_src = soup_player_data.find(
-            attrs={'class', "subphoto"}).find('img').get('src') if soup_player_data.find(
+        player_photo_src = player_information.find(
+            attrs={'class', "subphoto"}).find('img').get('src') if player_information.find(
             attrs={'class', "subphoto"}) else None
 
-        player_all_data = {
+        current_season_statistics_section = soup_player_page.find(
+            attrs={'class': 'currentseasonstats'})
+
+        if current_season_statistics_section:
+            try:
+                player_clean_sheets = current_season_statistics_section.find(
+                    attrs={'class': "s_cleansheets"}).findChildren()[0].text
+            except AttributeError:
+                player_clean_sheets = None
+
+            try:
+                player_goals_conceded = current_season_statistics_section.find(
+                    attrs={'class': "s_cleansheets"}).findChildren()[2].text
+            except AttributeError:
+                player_goals_conceded = None
+
+            try:
+                player_minutes_played = current_season_statistics_section.find(
+                    attrs={'class': "s_played_matches"}).findChildren()[0].text
+            except AttributeError:
+                player_minutes_played = None
+
+            try:
+                player_played_matched = current_season_statistics_section.find(
+                    attrs={'class': "s_played_matches"}).findChildren()[2].text
+            except AttributeError:
+                player_played_matched = None
+
+            try:
+                player_impacting_goals = current_season_statistics_section.find(
+                    attrs={'class': "s_impactgoals"}).findChildren()[0].text
+            except AttributeError:
+                player_impacting_goals = None
+
+            try:
+                player_goals = current_season_statistics_section.find(
+                    attrs={'class': "s_impactgoals"}).findChildren()[2].text
+            except AttributeError:
+                player_goals = None
+
+            try:
+                player_impacting_assists = current_season_statistics_section.find(
+                    attrs={'class': "s_impactassists"}).findChildren()[0].text
+            except AttributeError:
+                player_impacting_assists = None
+
+            try:
+                player_assists = current_season_statistics_section.find(
+                    attrs={'class': "s_impactassists"}).findChildren()[2].text
+            except AttributeError:
+                player_assists = None
+
+            try:
+                player_yellow_cards = current_season_statistics_section.find(
+                    attrs={'class': "s_yellowcards"}).findChildren()[0].text
+            except AttributeError:
+                player_yellow_cards = None
+
+            try:
+                player_red_cards = current_season_statistics_section.find(
+                    attrs={'class': "s_yellowcards"}).findChildren()[2].text
+            except AttributeError:
+                player_red_cards = None
+
+        player_position_section = soup_player_page.find(
+            attrs={'class': 'playerposition'})
+
+        if player_position_section:
+            try:
+                player_main_position = {
+                    "name": player_position_section.find(attrs={'class': 'mainposition'}).findChildren()[0].text,
+                    'percentage': player_position_section.find(attrs={'class': 'mainposition'}).findChildren()[1].text
+                }
+            except AttributeError:
+                player_main_position = None
+
+            try:
+                player_other_positions = []
+
+                for position in player_position_section.find_all(attrs={'class': 'otherpositions'}):
+                    player_other_positions.append({
+                        'name': position.findChildren()[0].text,
+                        'percentage': position.findChildren()[1].text
+                    })
+                if not len(player_other_positions):
+                    player_other_positions = None
+
+            except:
+                player_other_positions = None
+        try:
+            player_identities = list(map(lambda identity: identity.text, soup_player_page.find_all_next(
+                attrs={'class': 'nameIdentity'})))
+
+        except AttributeError:
+            player_identities = None
+
+        player_career_statistics_section = soup_player_page.find(
+            attrs={'class': 'player_career'})
+
+        if player_career_statistics_section:
+            statistics_lines = player_career_statistics_section.table.find_all(
+                'tr', recursive=False, attrs={'class': 'line'})
+            for line in statistics_lines[2:-1]:
+
+                season = line.find(attrs={"class": "season"})
+                club = line.find(attrs={"class": "club"})
+                tire = line.find(attrs={"class": "champ"})
+                matchs_played = line.find(attrs={"class": "matchsplayed"})
+
+                player_statistic = '{} {}'.format(season, club): {
+                        "tire": tire,
+                        "matchs played": matchs_played
+                    }
+                
+
+        player_information = {
             'name': player_name,
             'club': player_club,
             'age': player_age,
@@ -170,11 +289,35 @@ try:
             'weight': player_weight,
             'first cap': player_first_cap,
             'best foot': player_best_foot,
-            'photo': '{}{}'.format(url, player_photo_src)
-        }
+            'photo': '{}{}'.format(url, player_photo_src),
+            "positions": {
+                "main position": player_main_position,
+                "other positions": player_other_positions
+            },
+            "clean sheets": player_clean_sheets,
+            "goals conceded": player_goals_conceded,
+            "minutes played": player_minutes_played,
+            "played matched": player_played_matched,
+            "impacting goals": player_impacting_goals,
+            "goals": player_goals,
+            "impacting assists": player_impacting_assists,
+            "assists": player_assists,
+            "yellow cards": player_yellow_cards,
+            "red cards": player_red_cards,
+            "identities": player_identities,
+            # "player career statistics data": {
+            #     'offense': ,
+            #     'defense': ,
+            #     'playing time': ,
+            #     'discipline': ,
+            #     'results': ,
 
-        csv_writer.writerow(player_all_data)
+            # }
+
+        }
+        csv_writer.writerow(player_information)
         j += 1
+        break
 
     print('Players data was added to football.csv file successfully.')
 
